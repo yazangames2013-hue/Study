@@ -1,3 +1,10 @@
+export interface Task {
+  id: number;
+  text: string;
+  completed: boolean;
+}
+
+// Fix: Add missing StudyAids type and related interfaces.
 export interface Question {
   question: string;
   options: string[];

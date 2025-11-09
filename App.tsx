@@ -1,63 +1,67 @@
-import React, { useState, useCallback } from 'react';
-import { StudyAids } from './types';
-import { generateStudyAids } from './services/geminiService';
+import React, { useState, useEffect } from 'react';
+import { Task } from './types';
 import Header from './components/Header';
-import QuizGenerator from './components/QuizGenerator';
-import QuizView from './components/QuizView';
+import TaskForm from './components/QuizGenerator'; // Re-using QuizGenerator as TaskForm
+import TaskList from './components/QuizView'; // Re-using QuizView as TaskList
 
 const App: React.FC = () => {
-  const [studyText, setStudyText] = useState<string>('');
-  const [studyAids, setStudyAids] = useState<StudyAids | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [points, setPoints] = useState<number>(0);
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
 
-  const handleGenerateStudyAids = useCallback(async () => {
-    if (!studyText.trim()) {
-      setError('الرجاء إدخال نص لإنشاء مواد المذاكرة.');
-      return;
+  // Check if all tasks are complete
+  const allTasksCompleted = tasks.length > 0 && tasks.every(task => task.completed);
+
+  useEffect(() => {
+    if (allTasksCompleted) {
+      setPoints(prevPoints => prevPoints + 10);
+      setShowConfetti(true);
+      const timer = setTimeout(() => setShowConfetti(false), 4000); // Confetti effect for 4 seconds
+      return () => clearTimeout(timer);
     }
-    setIsLoading(true);
-    setError(null);
-    setStudyAids(null);
+  }, [allTasksCompleted]);
 
-    try {
-      const generatedAids = await generateStudyAids(studyText);
-      setStudyAids(generatedAids);
-    } catch (err) {
-      setError('فشل في إنشاء مواد المذاكرة. يرجى المحاولة مرة أخرى.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [studyText]);
+  const handleAddTask = (text: string) => {
+    const newTask: Task = {
+      id: Date.now(),
+      text,
+      completed: false,
+    };
+    setTasks(prevTasks => [...prevTasks, newTask]);
+  };
 
-  const handleReset = () => {
-    setStudyAids(null);
-    setError(null);
+  const handleToggleTask = (id: number) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
+  };
+
+  const handleClearTasks = () => {
+    setTasks([]);
+    setShowConfetti(false);
   };
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
-      <Header />
+      <Header points={points} />
       <main className="flex-grow container mx-auto p-4 md:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-          <QuizGenerator
-            studyText={studyText}
-            setStudyText={setStudyText}
-            onGenerate={handleGenerateStudyAids}
-            isLoading={isLoading}
-            hasContent={!!studyAids}
-          />
-          <QuizView
-            studyAids={studyAids}
-            isLoading={isLoading}
-            error={error}
-            onReset={handleReset}
-          />
+        <div className="max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 gap-8">
+            <TaskForm onAddTask={handleAddTask} isTaskListComplete={allTasksCompleted} />
+            <TaskList
+              tasks={tasks}
+              onToggleTask={handleToggleTask}
+              onClearTasks={handleClearTasks}
+              allTasksCompleted={allTasksCompleted}
+              showConfetti={showConfetti}
+            />
+          </div>
         </div>
       </main>
       <footer className="text-center p-4 text-text-secondary text-sm">
-        <p>شريكك الدراسي المدعوم بالذكاء الاصطناعي</p>
+        <p>أنجز مهامك واكسب النقاط!</p>
       </footer>
     </div>
   );
